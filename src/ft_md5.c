@@ -6,13 +6,13 @@
 /*   By: kkozlov <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2020/02/08 19:46:54 by kkozlov           #+#    #+#             */
-/*   Updated: 2020/02/12 12:33:54 by kkozlov          ###   ########.fr       */
+/*   Updated: 2020/02/15 15:25:58 by kkozlov          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ft_ssl.h"
 
-static char		g_s[] = 
+static char		g_s[] =
 {
 	7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
 	5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
@@ -20,7 +20,7 @@ static char		g_s[] =
 	6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21,
 };
 
-static t_uint32	g_k[] = 
+static t_uint32	g_k[] =
 {
 	0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
 	0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
@@ -46,78 +46,6 @@ static t_uint32 g_h03[] =
 	0x98badcfe, 0x10325476
 };
 
-static void		strfree(void *pv, size_t size)
-{
-	if (size)
-		free(pv);
-}
-
-static size_t	ft_deque_count(t_deque *deque)
-{
-	t_list	*it;
-	size_t	n_nodes;
-
-	it = ft_dequepeek(deque);
-	n_nodes = 0;
-	while (it && ++n_nodes)
-		it = it->next; 
-	return (n_nodes);
-}
-
-void	padding(t_deque *deque, int block_size)
-{
-	char	*it;
-	t_list	*last;
-	size_t	lenbits;
-	size_t	n;
-	char	buffer[1024];
-
-	ft_printf("deque_count: %llu\n", ft_deque_count(deque));	
-	last = ft_dequeeject(deque);
-	lenbits = (ft_deque_count(deque) * block_size) + last->content_size * BYTE;
-	ft_printf("length_bits: %llu\n", lenbits);
-	ft_memcpy(buffer, last->content, last->content_size);
-//	ft_printf("before padding:\n%.*b\n", 2 * block_size, buffer);
-	it = buffer + last->content_size;
-	*it = (char)(1 << (BYTE - 1));
-//	buffer[last->content_size] = (char)(1 << (BYTE - 1));
-	ft_lstdelone(&last, &strfree);
-//	ft_printf("after appending one:\n%.*b\n", 2 * block_size, buffer);
-	n = lenbits + BYTE;
-	while ((block_size - 64) != n % block_size)
-	{
-		n += BYTE;
-		*++it = 0;
-	}
-	ft_printf("n: %llu\n", n);
-//	*((size_t *)++it) = lenbits;
-//	*(size_t *)(it + n / BYTE /8 ) = 0xffffffffffffffff;
-//	*((size_t *)++it) = lenbits;
-//	it = buffer;
-//	*(size_t *)(it + n / BYTE) = lenbits;
-//	*(size_t *)(it + n / BYTE) = 0xffffffff;
-//	*((size_t *)++it) = 0xffffffff;
-	*((size_t *)++it) = lenbits;
-	n += 64;
-
-//	*((size_t *)++it) = 0xffffffffffffffff;
-	ft_printf("after padding:\n%.*b\n",block_size, buffer);
-	ft_printf("n: %llu\n", n);
-	ft_printf("n: %llu\n", n / BYTE);
-	it = buffer;
-	n -= ft_deque_count(deque) * block_size;
-	while (n >= (size_t)block_size)
-	{
-		ft_dequesnoc(deque, it, block_size / BYTE);
-		it += block_size / BYTE;
-		n -= block_size;
-	}
-//	ft_dequesnoc(deque, it, n / BYTE);
-//	ft_dequesnoc(deque, buffer, n / BYTE);
-	//ft_printf("%.*b\n", 2 * block_size, buffer);
-	ft_printf("n_blocks: %llu\n", ft_deque_count(deque));
-}
-
 static void	fgcalc(t_uint32 *abcd, int i, t_uint32 *f, t_uint32 *g)
 {
 	if (15 >= i)
@@ -142,50 +70,47 @@ static void	fgcalc(t_uint32 *abcd, int i, t_uint32 *f, t_uint32 *g)
 	}
 }
 
-t_uint32		*ft_md5(t_deque *deque)
+static void	hashcalc(t_uint32 *a_g, t_uint32 *hashes, void *content)
 {
-	t_uint32	abcdfg[6];
-	t_uint32	hashes[4];
 	t_uint32	w[16];
+	int			i;
+
+	ft_memcpy(a_g, hashes, 4 * sizeof(t_uint32));
+	ft_memcpy(w, content, sizeof(w));
+	i = -1;
+	while (++i < 64)
+	{
+		fgcalc(a_g, i, &a_g[4], &a_g[5]);
+		a_g[4] += a_g[0] + g_k[i] + w[a_g[5]];
+		a_g[0] = a_g[3];
+		a_g[3] = a_g[2];
+		a_g[2] = a_g[1];
+		a_g[1] += (a_g[4] << g_s[i]) | (a_g[4] >> (32 - g_s[i]));
+	}
+	i = -1;
+	while (++i < 4)
+		hashes[i] += a_g[i];
+}
+
+void		*ft_md5(t_deque *deque)
+{
+	t_uint32	a_g[6];
+	t_uint32	hashes[4];
 	int			i;
 	t_uint32	*digest;
 	t_list		*it;
 
-	padding(deque, 512);
+	padding(deque, 512, 0);
 	it = ft_dequepeek(deque);
 	ft_memcpy(hashes, g_h03, sizeof(hashes));
 	i = -1;
 	while (it)
 	{
-		ft_printf("%.*b\n", it->content_size * BYTE, it->content);
-
-		ft_memcpy(abcdfg, hashes, sizeof(hashes));
-		ft_memcpy(w, it->content, sizeof(w));
-		ft_printf("%.*s\n", 64, (char *)w);
-		i = -1;
-		while (++i < 64)
-		{
-			fgcalc(abcdfg, i, &abcdfg[4], &abcdfg[5]);
-			abcdfg[4] += abcdfg[0] + g_k[i] + w[abcdfg[5]];
-			abcdfg[0] = abcdfg[3];
-			abcdfg[3] = abcdfg[2];
-			abcdfg[2] = abcdfg[1];
-			abcdfg[1] += (abcdfg[4] <<  g_s[i]) | (abcdfg[4] >> (32 - g_s[i]));
-		}
-		i = -1;
-		while (++i < 4)
-			hashes[i] += abcdfg[i];
-		ft_printf("%u %u %u %u\n", hashes[0], hashes[1], hashes[2], hashes[3]);
-		ft_printf("%x %x %x %x\n", hashes[0], hashes[1], hashes[2], hashes[3]);
+		hashcalc(a_g, hashes, it->content);
 		it = it->next;
 	}
 	digest = malloc(4 * sizeof(t_uint32));
 	ft_memcpy(digest, hashes, 4 * sizeof(t_uint32));
-	i = -1;
-	while (++i < 4)
-	{
-		ft_swap(&digest[i], ((char *)&digest[i] + 3), sizeof(char));
-		ft_swap((char *)&digest[i] + 1, (char *)&digest[i] + 2, sizeof(char));
-	}
+	ft_endcvt(digest, sizeof(t_uint32), 4);
 	return (digest);
 }

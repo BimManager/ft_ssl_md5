@@ -6,13 +6,21 @@
 /*   By: kkozlov <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2020/02/10 13:35:03 by kkozlov           #+#    #+#             */
-/*   Updated: 2020/02/13 12:23:36 by kkozlov          ###   ########.fr       */
+/*   Updated: 2020/02/16 11:14:20 by kkozlov          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ft_ssl.h"
 
-static t_uint32	g_hashes[] =
+static t_uint32	g_h224[] =
+{
+	0xc1059ed8, 0x367cd507,
+	0x3070dd17, 0xf70e5939,
+	0xffc00b31, 0x68581511,
+	0x64f98fa7, 0xbefa4fa4
+};
+
+static t_uint32	g_h256[] =
 {
 	0x6a09e667, 0xbb67ae85,
 	0x3c6ef372, 0xa54ff53a,
@@ -41,154 +49,107 @@ static t_uint32	g_k[] =
 
 };
 
-t_uint32	ch(t_uint32 x, t_uint32 y, t_uint32 z)
-{
-	return ((x & y) ^ ((~x) & z));
-}
-
-t_uint32	maj(t_uint32 x, t_uint32 y, t_uint32 z)
-{
-	return ((x & y) ^ (x & z) ^ (y & z));
-}
-
-t_uint32	rotr32(t_uint32 x, int n)
-{
-	return ((x >> n) | (x << (32 - n)));
-}
-
-t_uint32	c_sigma0(t_uint32 x)
-{
-	return (rotr32(x, 2) ^ rotr32(x, 13) ^ rotr32(x, 22));
-}
-
-t_uint32	c_sigma1(t_uint32 x)
-{
-	return (rotr32(x, 6) ^ rotr32(x, 11) ^ rotr32(x, 25));
-}
-
-t_uint32	sigma0(t_uint32 x)
-{
-	return (rotr32(x, 7) ^ rotr32(x, 18) ^ (x >> 3));
-}
-
-t_uint32	sigma1(t_uint32 x)
-{
-	return (rotr32(x, 17) ^ rotr32(x, 19) ^ (x >> 10));
-}
-
-#define ROTRW(x, n, w) (((x) >> (n)) | ((x) << (w - (n))))
-
-static unsigned char	test_block[] = 
-{
-	0,  1,  2,  3,  4,  5,  6,  7, 
-	8,  9, 10, 11, 12, 13, 14, 15,
-	16, 17, 18, 19, 20, 21, 22, 23,
-	24, 25, 26, 27, 28, 29, 30, 31,
-	32, 33, 34, 35, 36, 37, 38, 39, 
-	40, 41, 42, 43, 44, 45, 46, 47,
-	48, 49, 50, 51, 52, 53, 54, 55,
-	56, 57, 58, 59, 60, 61, 62, 63
-};
-
-
 /*
 ** 1. Prepare the message schedule
 */
 
-/*static void	mschprep(t_uint32 *w, t_list *it)
+static void		msprep(t_uint32 *w, t_list *it)
 {
 	int	i;
 
 	ft_memcpy(w, it->content, it->content_size);
+	ft_endcvt(w, sizeof(t_uint32), 64);
 	i = 15;
 	while (++i < 64)
-		w[i] = ROTRW(
-		}*/
+	{
+		w[i] = ((rotr32(w[i - 2], 17) ^ rotr32(w[i - 2], 19) ^ (w[i - 2] >> 10))
+			+ (rotr32(w[i - 15], 7) ^ rotr32(w[i - 15], 18) ^ (w[i - 15] >> 3))
+				+ w[i - 7] + w[i - 16]);
+	}
+}
 
-t_uint32	*ft_sha256(t_deque *deque)
+/*
+** 3. Step 3
+*/
+
+static void		precompute(t_uint32 *a_h, t_uint32 *w)
+{
+	int			i;
+	t_uint32	t1;
+	t_uint32	t2;
+
+	i = -1;
+	while (++i < 64)
+	{
+		t1 = (rotr32(a_h[4], 6) ^ rotr32(a_h[4], 11) ^ rotr32(a_h[4], 25))
+			+ ((a_h[4] & a_h[5]) ^ (~a_h[4] & a_h[6]))
+			+ a_h[7] + g_k[i] + w[i];
+		t2 = (rotr32(a_h[0], 2) ^ rotr32(a_h[0], 13) ^ rotr32(a_h[0], 22))
+			+ ((a_h[0] & a_h[1]) ^ (a_h[0] & a_h[2]) ^ (a_h[1] & a_h[2]));
+		a_h[7] = a_h[6];
+		a_h[6] = a_h[5];
+		a_h[5] = a_h[4];
+		a_h[4] = a_h[3] + t1;
+		a_h[3] = a_h[2];
+		a_h[2] = a_h[1];
+		a_h[1] = a_h[0];
+		a_h[0] = t1 + t2;
+	}
+}
+
+static t_uint32	*getdigest(t_uint32 *hashes)
+{
+	t_uint32	*digest;
+
+	digest = malloc(8 * sizeof(t_uint32));
+	ft_memcpy(digest, hashes, 8 * sizeof(t_uint32));
+	return (digest);
+}
+
+void			*ft_sha256(t_deque *deque)
 {
 	t_list		*it;
 	t_uint32	hashes[8];
 	t_uint32	w[64];
 	t_uint32	a_h[8];
-	t_uint32	temps[2];
 	int			i;
-	t_uint32	*digest;
 
-
-	int			j;
-	t_uint32	s1;
-	t_uint32	s0;
-//	t_uint32	ch;
-//	t_uint32	maj;
-//	t_uint32	temp1;
-//	t_uint32	temp2;
-
-	padding(deque, 512);
+	padding(deque, 512, 1);
 	it = ft_dequepeek(deque);
-	ft_memcpy(hashes, g_hashes, sizeof(hashes));
-	ft_printf("%.*b\n", it->content_size * BYTE, w);
+	ft_memcpy(hashes, g_h256, sizeof(hashes));
 	while (it)
 	{
-//		ft_memcpy(w, it->content, it->content_size);
-		//	ft_bzero(w, it->content_size);
-		ft_printf("%.*b\n", it->content_size * BYTE, w);
-		ft_memcpy(w, test_block, sizeof(w));
-		ft_printf("%.*b\n", it->content_size * BYTE, w);
-		i = 15;
-		while (++i < 64)
-		{
-			w[i] = sigma1(w[i - 2]) + w[i - 7]
-				+ sigma0(w[i - 15]) + w[i - 16];
-			ft_printf("sigma1: %x sigma0: %x; %x; %x\n",
-					  sigma1(w[i - 2]), sigma0(w[i - 15]), w[i - 7],
-					  w[i - 16]);
-			ft_printf("w: %x\n", w[i]);
-//			((x >> n) | (x << (32 - n)));
-			s0 = ROTRW(w[i - 15], 7, 32) ^ ROTRW(w[i - 15], 18, 32) ^ (w[i - 15] >> 3);
-			s1 = ROTRW(w[i - 2], 17, 32) ^ ROTRW(w[i - 2], 19, 32) ^ (w[i - 2] >> 10);
-			w[i] = w[i - 16] + s0 + w[i - 7] + s1;
-			ft_printf("w: %x\n", w[i]);
-		}
+		msprep(w, it);
 		ft_memcpy(a_h, hashes, sizeof(a_h));
-		i = -1;
-		while (++i < 64)
-		{
-//			ft_printf("w[%d]: %x\n", i + 1, w[i]);
-			temps[0] = a_h[7] + c_sigma1(a_h[4]) 
-				+ ch(a_h[4], a_h[5], a_h[6]) + g_k[i] + w[i];
-			temps[1] = c_sigma0(a_h[0]) + maj(a_h[0], a_h[1], a_h[2]);
-			a_h[7] = a_h[6];
-			a_h[6] = a_h[5];
-			a_h[5] = a_h[4];
-			a_h[4] = a_h[3] + temps[0];
-			a_h[3] = a_h[2];
-			a_h[2] = a_h[1];
-			a_h[1] = a_h[0];
-			a_h[0] = temps[0] + temps[1];
-			j = -1;
-			while (++j < 8)
-				ft_printf("a_h[%d]: %x\n", j, a_h[j]);
-			ft_printf("\n");
-			
-		}
+		precompute(a_h, w);
 		i = -1;
 		while (++i < 8)
 			hashes[i] += a_h[i];
 		it = it->next;
 	}
+	return (getdigest(hashes));
+}
 
-	i = -1;
-	while (++i < 8)
-		ft_printf("%x\n", hashes[i]);
+void			*ft_sha224(t_deque *deque)
+{
+	t_list		*it;
+	t_uint32	hashes[8];
+	t_uint32	w[64];
+	t_uint32	a_h[8];
+	int			i;
 
-	digest = malloc(8 * sizeof(t_uint32));
-	ft_memcpy(digest, hashes, 8 * sizeof(t_uint32));
-	i = -1;
-	while (++i < 7)
+	padding(deque, 512, 1);
+	it = ft_dequepeek(deque);
+	ft_memcpy(hashes, g_h224, sizeof(hashes));
+	while (it)
 	{
-		ft_swap(&digest[i], ((char *)&digest[i] + 3), sizeof(char));
-		ft_swap((char *)&digest[i] + 1, (char *)&digest[i] + 2, sizeof(char));
+		msprep(w, it);
+		ft_memcpy(a_h, hashes, sizeof(a_h));
+		precompute(a_h, w);
+		i = -1;
+		while (++i < 8)
+			hashes[i] += a_h[i];
+		it = it->next;
 	}
-	return (digest);
+	return (getdigest(hashes));
 }

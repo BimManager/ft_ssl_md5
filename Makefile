@@ -14,11 +14,12 @@ SRCDIR := src
 OBJDIR := build
 
 SRCS := $(addprefix $(SRCDIR)/, \
-		main.c \
+		main.c ft_ssl.c \
 		ft_getopt.c ft_argparse.c \
-		ft_fdread.c \
-		ft_envnew.c \
-		ft_md5.c ft_sha256.c)
+		ft_fdread.c ft_endcvt.c \
+		ft_envnew.c ft_strdeque.c ft_digestput.c \
+		ft_padding.c ft_utils.c \
+		ft_md5.c ft_sha256.c ft_sha512.c)
 
 OBJS := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SRCS))
 
@@ -38,10 +39,10 @@ $(OBJDIR)/%.o : $(SRCDIR)/%.c
 
 clean :
 	@if [[ -e $(OBJDIR) ]]; then rm -rf $(OBJDIR); fi
-#	@make clean -C ./libft
+	@make clean -C ./libft
 
 fclean : clean
 	@rm -f $(NAME)
-#	@make fclean -C ./libft
+	@make fclean -C ./libft
 
 re : fclean all

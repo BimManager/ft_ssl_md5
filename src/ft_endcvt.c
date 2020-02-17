@@ -1,22 +1,33 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   ft_endcvt.c                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: kkozlov <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2020/02/06 14:11:14 by kkozlov           #+#    #+#             */
-/*   Updated: 2020/02/16 10:32:31 by kkozlov          ###   ########.fr       */
+/*   Created: 2020/02/14 11:50:46 by kkozlov           #+#    #+#             */
+/*   Updated: 2020/02/15 14:58:09 by kkozlov          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ft_ssl.h"
 
-int	main(int argc, char **argv)
+static void	ft_memrev(void *pv, size_t size)
 {
-	t_env		*env;
+	char	*bp;
+	char	*ep;
 
-	env = ft_argparse(argc, argv);
-	ft_envdel(&env);
-	return (EXIT_SUCCESS);
+	bp = pv;
+	ep = bp + size;
+	while (ep > bp)
+		ft_swap(bp++, --ep, sizeof(char));
+}
+
+void		ft_endcvt(void *pv, size_t width, size_t nel)
+{
+	size_t	i;
+
+	i = -1;
+	while (++i < nel)
+		ft_memrev((char *)pv + i * width, width);
 }
