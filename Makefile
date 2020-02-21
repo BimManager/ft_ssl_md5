@@ -16,7 +16,7 @@ OBJDIR := build
 SRCS := $(addprefix $(SRCDIR)/, \
 		main.c ft_ssl.c \
 		ft_getopt.c ft_argparse.c \
-		ft_fdread.c ft_endcvt.c \
+		ft_fdread.c \
 		ft_envnew.c ft_strdeque.c ft_digestput.c \
 		ft_padding.c ft_utils.c \
 		ft_md5.c ft_sha256.c ft_sha512.c)

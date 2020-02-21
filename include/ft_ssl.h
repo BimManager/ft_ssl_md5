@@ -6,7 +6,7 @@
 /*   By: kkozlov <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2020/02/06 14:07:20 by kkozlov           #+#    #+#             */
-/*   Updated: 2020/02/16 11:15:11 by kkozlov          ###   ########.fr       */
+/*   Updated: 2020/02/21 09:34:52 by kkozlov          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -70,7 +70,6 @@ void			ft_strdigest(t_env *env, const char *str);
 void			ft_filedigest(t_env *env, const char *filename);
 
 void			padding(t_deque *deque, int block_size, int cvt);
-void			ft_endcvt(void *pv, size_t width, size_t nel);
 t_env			*ft_envnew(void);
 void			ft_envdel(t_env **env);
 
