@@ -1,0 +1,7 @@
+*~
+*.o
+*.a
+test/
+trash/
+build/
+ft_ssl
