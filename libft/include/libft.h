@@ -6,7 +6,7 @@
 /*   By: kkozlov <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/11/05 20:38:10 by kkozlov           #+#    #+#             */
-/*   Updated: 2020/02/13 11:38:18 by kkozlov          ###   ########.fr       */
+/*   Updated: 2020/03/09 15:09:50 by kkozlov          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,6 +32,23 @@ void				ft_assert(const char *expr, const char *file, int nline);
 # endif
 
 # define FT_UINT64_2PART(a, b) ((size_t)a << 32 + 0x##b##u)
+
+# define SET_BIT(x, n)	((x) | (1 << (n)))
+# define CLEAR_BIT(x, n) ((x) & ~(1 << (n)))
+# define TOGGLE_BIT(x, n) ((x) ^ (1 << (n)))
+# define TEST_BIT(x, n) ((x >> n) & 1)
+
+# define IS_ODD(x) ((x) & 1)
+# define ARE_EQUAL(a, b) ((a) ^ (b))
+# define ZERO_OUT(a) ((a) ^ (a))
+
+# define PARENT(n) ((n) & 1 ? (n) >> 1 : ((n) >> 1) - 1)
+# define LEFT(n) (((n) << 1) + 1)
+# define RIGHT(n) (((n) << 1) + 2)
+
+# define M1		0x5555555555555555
+# define M2		0x3333333333333333
+# define M4		0x0f0f0f0f0f0f0f0f
 
 # define BYTE 			8
 # define BUFF_SIZE		1
@@ -181,6 +198,7 @@ int					ft_str_islower(char *str);
 int					ft_str_isnumeric(char *str);
 int					ft_str_isprint(char *str);
 int					ft_str_isupper(char *str);
+int					ft_str_isanagram(const char *s1, const char *s2);
 char				*ft_strcapitalize(char *str);
 char				*ft_strdup(const char *s1);
 char				*ft_strndup(const char *s1, size_t n);
@@ -197,8 +215,7 @@ char				*ft_strlowcase(char *str);
 char				*ft_strncat(char *dest, char *src, int nb);
 int					ft_strncmp(const char *s1, const char *s2, size_t n);
 char				*ft_strupcase(char *str);
-void				ft_swap(void *pv1, void *pv2, size_t elem_size);
-void				ft_rotate(void *front, void *middle, void *end);
+
 char				*ft_strchr(const char *s, int c);
 char				*ft_strrchr(const char *s, int c);
 
@@ -222,7 +239,10 @@ void				ft_zero_bit(void *pv, size_t elem_size, size_t bit_pos);
 int					ft_test_bit(void *pv, size_t elem_size, size_t bit_pos);
 void				ft_reverse_bits(void *pv, size_t elem_size);
 int					ft_hamming_weight(const void *pb, size_t elem_size);
+int					ft_popcount64(uint64_t x);
 
+void				ft_swap(void *pv1, void *pv2, size_t elem_size);
+void				ft_endcvt(void *pv, size_t width, size_t nel);
 void				*ft_memset(void *b, int c, size_t len);
 void				ft_bzero(void *s, size_t n);
 void				*ft_memcpy(void *dst, const void *src, size_t n);
@@ -233,6 +253,7 @@ int					ft_memcmp(const void *s1, const void *s2, size_t n);
 void				*ft_memalloc(size_t size);
 void				ft_memdel(void **ap);
 void				*ft_memdup(const void *src, size_t n);
+void				ft_memrot(void *front, void *middle, void *end);
 
 char				*ft_strnew(size_t size);
 void				ft_strdel(char **as);
@@ -263,11 +284,14 @@ void				ft_putstr_fd(char const *s, int fd);
 void				ft_putendl_fd(char const *s, int fd);
 
 t_list				*ft_lstnew(void const *content, size_t content_size);
+void				ft_lstdel(t_list **alst, void (*del) (void *, size_t));
 void				ft_lstdelone(t_list **alst, void (*del) (void *, size_t));
 void				ft_lstdelif(t_list **alst, void *ref_data,
 						int (*cmp)(const void *, const void *),
 						void (*del) (void *, size_t));
-void				ft_lstdel(t_list **alst, void (*del) (void *, size_t));
+t_list				*ft_lstdupdel(t_list *head,
+						int (*cmp)(const void *, const void *),
+						void (*del) (void *, size_t));
 void				ft_lstadd(t_list **alst, t_list *new);
 void				ft_lstiter(t_list *lst, void (*f) (t_list *elem));
 t_list				*ft_lstmap(t_list *lst, t_list *(*f) (t_list *elem));
@@ -333,6 +357,8 @@ int					*ft_cntsort(int *arr, size_t n);
 void				ft_insrtsort(void *base, size_t nel, size_t width,
 						int (*cmp)(const void *, const void *));
 void				ft_qsort(void *base, size_t nel, size_t width,
+						int (*compar)(const void *, const void *));
+void				ft_heapsort(void *base, size_t nel, size_t width,
 						int (*compar)(const void *, const void *));
 
 int					ft_dprintf(int fd, const char *fmt, ...);
